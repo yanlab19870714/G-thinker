@@ -1,0 +1,54 @@
+* 论文里介绍cuckoo hashmap: http://efficient.github.io/libcuckoo, 可以直接用其总结页面的语句
+
+* vcache包含pcache和zcache
+- 其他只是辅助，其实不用锁，只有vcache先锁key，再操作pcache和zcache
+- thread counter会被committed到global counter (cache size)，如果超过一定累计量
+- 累计量用于限制计算线程产生新的pull req，同时激发根据zcache的删除操作
+- *** 一个v进入vcache的唯一途径：计算线程lock&get -> 产生remote request -> resp到了后调用vcache.insert转移req (pcache->vcache) -> 需要一个机制来通知等待的计算线程所有点收齐了
+- *** 一个v离开vcache的唯一途径：根据zcache进行对vcache里解锁点的删除
+- ??? 可能要把lock_counter换成list of tasks requesting the vertex
+
+* 简化实现：（大任务允许超，而且不会被滞后执行）
+- 核心思想
+>> 大任务可以go ahead lock，不用“发现不能全部pull后要对已经lock的cache点释放锁”
+>> 通信线程发送时候不用再check capacity了，接收时候如果超capacity就尽量replace, 不然就简单insert
+- 计算线程根据capacity limit来hold住计算
+- 通信线程被动地收所有adj-lists，插入一个后尽量要删除一个（除非zerocache走了一圈也删不掉）
+
+* vcache:
+- 每个表项的value额外维护lock-counter
+- 计算线程只负责读cache
+>> 流程是(1) lock_and_get, (2.1) 如果是NULL说明不在vcache里，要pull; (2.2) 不然就会把vcache里的项目lock-counter++, 注意用完要进行解锁unlock()
+>> 对于上面的(2.1), 应该要把pull请求给通信模块（也维护一个req-hashmap结构），锁是加到对应req项目的lock-counter上的；等pull到时通信模块要调用insert(key, val, lock-counter)把req的锁转给cache (并把收到的val加入cache)。无论是(2.1)还是(2.2), 最后锁住的元素都是在cache里了，这时调用compute(pulled)后才一一解锁
+
+* pullcache作为vcache的另一个模块，类似zcache:
+> The cache of data objects to pull from remote
+> Maintaining a lock_counter with each table entry, indicating how many tasks are needing the object (but not hit in adjCache)
+> There are two states: (1) buffered (req will be sent), (2) pending (req already sent, on-the-fly), but it’s not needed for the pullcache logic; just add pull req to pull stream when first inserted to pullcache
+> If receiving thread gets response, it will erase the entry in pullCache, and insert it into adjCache
+- computing thread needs to make sure a vertex to pull is "neither in adjCache, nor in pullcache", in order to add a new pull request
+- operations are atomic to adjCache, and pullCache is like an assistant of adjCache (just like zeroCache) automatically locked
+- receiving thread locks "key" in adjCache (should not exist 但是所在的bin还是锁住的, assert failure otherwise), and insert received data to it, and delete "key" from pullCache
+- computing thread locks "key" in adjCache, if not found 但是所在的bin还是锁住的, check pullCache to add new entry or increment counter of an old entry
+
+* 通信模块（不包含kv-store）
+- 插入值可以考虑开多线程，发送接收可以用单独一个线程
+- 维护一个req-hashmap，计算线程要pull就加该结构的lock-counter，pull过程中lock-counter可以继续++，回来以后这些lock-counter会转嫁给vcache
+- 第一次要pull时候（req’s lock-counter 0->1）可以把pull req追加到“req通信流”中用于排期发送
+- task存盘要采用2N时候存N下去，不会一下子空，也不会一下子满
+- 为了避免死锁，我们总是先写vcache[v]再更新zcache[v]; 替换时我们先读取zcache的列表（多读一点，OVER_READ_FACTOR，以防后面人家重锁部分点，无法替换），然后参与其他函数对vcache的锁竞争
+
+——————— not cleared yet
+* size(）可以直接用来给线程判断是否要阻塞，不过要注意并行瓶颈问题（写个测试程序）; 可能还是自己维护atomic counter，因为size()包括lock-counter == 0的元素
+* 另外搞个hashmap(其实set就可以)来track可以删除的元素
+
+*** lock-counter = 0时的竞争：计算线程可能加成1，通信线程可能删除它。解决方案：用cuckoo的复合函数进行counter++：如果存在就调用fn（比如加lock-counter）, 不存在就说明要pull
+
+===============
+adjCache.h
+版本0：只实现了lock-get, unlock
+版本1：实现了zero-cache, insert和erase, 没有加counter (of vertex number)
+版本2：实现了replace函数, 没有加counter
+版本3：实现了pull-cache, 更新lock_and_get & insert以考虑pull-cache
+版本4：加了thread-friendly counter，并集成到pcache.insert和vcache.erase函数中
+>> cuckoo库增加了函数update_fn(key, fn1, fn2)
