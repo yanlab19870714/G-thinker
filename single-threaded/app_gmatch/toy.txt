@@ -1,0 +1,1 @@
+1 a	3 2 c 4 c 5 b2 c	3 1 a 3 b 5 b3 b	4 2 c 4 c 5 b 13 d4 c	4 1 a 3 b 5 b 9 b5 b	4 1 a 2 c 3 b 4 c6 d	3 7 a 9 b 10 d7 a	4 6 d 8 d 10 d 11 a8 d	3 7 a 9 b 10 d9 b	4 4 c 6 d 8 d 10 d10 d	4 6 d 7 a 8 d 9 b11 a	4 7 a 12 b 14 b 15 c12 b	3 11 a 13 d 15 c13 d	4 3 b 12 b 14 b 15 c14 b	3 11 a 13 d 15 c15 c	4 11 a 12 b 13 d 14 b
