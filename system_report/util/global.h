@@ -1,3 +1,19 @@
+//########################################################################
+//## Copyright 2018 Da Yan http://www.cs.uab.edu/yanda
+//##
+//## Licensed under the Apache License, Version 2.0 (the "License");
+//## you may not use this file except in compliance with the License.
+//## You may obtain a copy of the License at
+//##
+//## //http://www.apache.org/licenses/LICENSE-2.0
+//##
+//## Unless required by applicable law or agreed to in writing, software
+//## distributed under the License is distributed on an "AS IS" BASIS,
+//## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//## See the License for the specific language governing permissions and
+//## limitations under the License.
+//########################################################################
+
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
@@ -35,8 +51,8 @@ static clock_t polling_ticks = POLLING_TIME * CLOCKS_PER_SEC / 1000000;
 
 #define PROGRESS_SYNC_TIME_GAP 1000000 //unit: usec, used by Profiler main-thread
 
-#define TASK_BATCH_NUM 50 //minimal number of tasks processed as a unit
-#define TASKMAP_LIMIT 2 * TASK_BATCH_NUM //number of tasks allowed in a task map
+#define TASK_BATCH_NUM 150 //minimal number of tasks processed as a unit
+#define TASKMAP_LIMIT 8 * TASK_BATCH_NUM //number of tasks allowed in a task map
 
 #define VCACHE_LIMIT 2000000 //how many vertices allowed in vcache (pull-cache + adj-cache)
 #define VCACHE_OVERSIZE_FACTOR 0.2
@@ -145,6 +161,7 @@ rwlock agg_rwlock;
 
 //============================
 string TASK_DISK_BUFFER_DIR;
+string REPORT_DIR;
 
 //disk operations
 void _mkdir(const char *dir) {//taken from: http://nion.modprobe.de/blog/archives/357-Recursive-directory-creation.html
