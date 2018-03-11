@@ -1,4 +1,0 @@
-We used libcuckoo:
-https://github.com/efficient/libcuckoo
-
-The library is included in system/cuckoo, and is used by subgraph/adjCache.h
