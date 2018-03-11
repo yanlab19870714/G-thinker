@@ -161,6 +161,7 @@ rwlock agg_rwlock;
 
 //============================
 string TASK_DISK_BUFFER_DIR;
+string REPORT_DIR;
 
 //disk operations
 void _mkdir(const char *dir) {//taken from: http://nion.modprobe.de/blog/archives/357-Recursive-directory-creation.html
@@ -202,5 +203,17 @@ atomic<size_t>* global_tasknum_vec; //set by Worker using its compers, updated b
 atomic<size_t> num_stolen(0); //number of tasks stolen by the current worker since previous profiling barrier
 
 int num_compers;
+
+//============= to allow long long to be ID =============
+namespace __gnu_cxx {
+    template <>
+    struct hash<long long> {
+        size_t operator()(long long key) const
+        {
+            return (size_t)key;
+        }
+    };
+}
+//====================================================
 
 #endif

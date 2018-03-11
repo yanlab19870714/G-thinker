@@ -535,7 +535,7 @@ ofbinstream & operator>>(ofbinstream & m, vector<int> & v)
     size_t size;
     m >> size;
     vector<int>::iterator it = v.begin();
-    size_t len = STREAM_MEMBUF_SIZE / sizeof(int);
+    size_t len = STREAM_MEMBUF_SIZE / 2 / sizeof(int);
     size_t bytes = len * sizeof(int);
     while(size > len)
     {
@@ -555,7 +555,7 @@ ofbinstream & operator>>(ofbinstream & m, vector<double> & v)
     size_t size;
     m >> size;
     vector<double>::iterator it = v.begin();
-    size_t len = STREAM_MEMBUF_SIZE / sizeof(double);
+    size_t len = STREAM_MEMBUF_SIZE / 2 / sizeof(double);
     size_t bytes = len * sizeof(double);
     while(size > len)
     {
@@ -588,11 +588,12 @@ ofbinstream & operator>>(ofbinstream & m, string & str)
     m >> length;
     str.clear();
 
-    while(length > STREAM_MEMBUF_SIZE)
+    size_t HALF_BUF = STREAM_MEMBUF_SIZE/2;
+    while(length > HALF_BUF)
     {
-        char* data = (char*)m.raw_bytes(STREAM_MEMBUF_SIZE); //raw_bytes cannot accept input > STREAM_MEMBUF_SIZE
-        str.append(data, STREAM_MEMBUF_SIZE);
-        length -= STREAM_MEMBUF_SIZE;
+        char* data = (char*)m.raw_bytes(HALF_BUF); //raw_bytes cannot accept input > STREAM_MEMBUF_SIZE
+        str.append(data, HALF_BUF);
+        length -= HALF_BUF;
     }
     char* data = (char*)m.raw_bytes(length);
     str.append(data, length);

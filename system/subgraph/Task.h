@@ -124,31 +124,22 @@ public:
 		{
 			//so far, all pull reqs are processed, and pending resps could've arrived (not wakening the task)
 			//------
-			bool popped;
-			auto fn_moveItem = [&](TaskT* & mapped)
+			conmap2t_bucket<long long, TaskT *> & bucket = taskmap.task_map.get_bucket(task_id);
+			bucket.lock();
+			hash_map<long long, TaskT *> & kvmap = bucket.get_map();
+			auto it = kvmap.find(task_id);
+			if(it != kvmap.end())
 			{
 				if(met_counter == req_size())
 				{//ready for task move, delete
-					popped = true;
-				}
-				else
-				{//pending resps, retain
-					popped = false;
-				}
-				return popped; //to execute whether to delete from task_map or not
-			};
-			//------
-			bool key_found = taskmap.task_map.erase_fn(task_id, fn_moveItem); //try to compete with RespServer in popping the task from task_map
-			if(key_found) //not already moved by RespServer
-			{
-				if(popped) //popped successfully (counter-met = counter-requested), need to move the task
-				{
+					kvmap.erase(it);
 					taskmap.task_buf.enqueue(this);
 				}
 				//else, RespServer will do the move
 			}
 			//else, RespServer has already did the move
-			return false; //either has pending resps, or all resps are received but the task is now in task_buf (to be processed, but not this time)
+			bucket.unlock();
+			return false;//either has pending resps, or all resps are received but the task is now in task_buf (to be processed, but not this time)
 		}
 		else return true; //all v-local, continue to run the task for another iteration
 	}

@@ -20,8 +20,8 @@
 #include <atomic>
 #include "util/conque_p.h"
 #include "util/global.h"
-#include "cuckoo/cuckoohash_map.hh"
 #include <iostream>
+#include "util/conmap2t.h"
 
 using namespace std;
 
@@ -32,7 +32,7 @@ public:
 	//- pushed by Comper
 	//- popped by RespServer
 
-	typedef cuckoohash_map<long long, TaskT *> TMap; // TMap[task_id] = task
+	typedef conmap2t<long long, TaskT *> TMap; // TMap[task_id] = task
 	TMap task_map; //for keeping pending tasks
 	//- added by Comper
 	//- removed by RespServer
@@ -66,7 +66,6 @@ public:
 	{
 		seqno = 0;
 		size = 0;
-		task_map.reserve(TASKMAP_LIMIT);
 	}
 
 	TaskMap(int thread_id)
@@ -74,7 +73,6 @@ public:
 		thread_rank = thread_id;
 		seqno = 0;
 		size = 0;
-		task_map.reserve(TASKMAP_LIMIT);
 	}
 
 	//called by Comper, need to provide counter = task.pull_all(.)
@@ -83,7 +81,11 @@ public:
 	{
 		size++;
 		//add to task_map
-		task_map.insert(get_next_taskID(), task);
+		long long tid = get_next_taskID();
+		conmap2t_bucket<long long, TaskT *> & bucket = task_map.get_bucket(tid);
+		bucket.lock();
+		bucket.insert(tid, task);
+		bucket.unlock();
 	}//no need to add "v -> tasks" track, should've been handled by lock&get(tid) -> request(tid)
 
 	//called by RespServer
@@ -91,26 +93,19 @@ public:
 	//- if task is ready, move it from "task_map" to "task_buf"
 	void update(long long task_id)
 	{
-		TaskT* task = NULL;
-		//erase from task_map, and get the task pointer into "task"
-		auto fn_erase = [&](TaskT* & mapped)
+		conmap2t_bucket<long long, TaskT *> & bucket = task_map.get_bucket(task_id);
+		bucket.lock();
+		hash_map<long long, TaskT *> & kvmap = bucket.get_map();
+		auto it = kvmap.find(task_id);
+		assert(it != kvmap.end()); //#DEBUG# to make sure key is found
+		TaskT * task = it->second;
+		task->met_counter++;
+		if(task->met_counter == task->req_size())
 		{
-			mapped->met_counter ++;
-			if(mapped->met_counter == mapped->req_size())
-			{
-				task = mapped; //record element's task pointer
-				return true; //to erase the element
-			}
-			else return false; //task not yet ready
-		};
-		bool fn_called = task_map.erase_fn(task_id, fn_erase); //compete with comper in popping the task from task_map
-		//must win if mapped.counter++ is the last ++, since erase_fn locks task_id, and comper's erase_fn will be blocked; hence the assert below
-		assert(fn_called); //#DEBUG# to make sure key is found, and fn is called
-		if(task != NULL) //task ready
-		{
-			//add to conque
 			task_buf.enqueue(task);
+			kvmap.erase(it);
 		}
+		bucket.unlock();
 	}
 
 	TaskT* get() //get the next ready-task in "task_buf", returns NULL if no more

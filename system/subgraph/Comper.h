@@ -26,6 +26,7 @@
 #include "string.h"
 #include <thread>
 #include "Aggregator.h"
+#include <fstream>
 
 using namespace std;
 
@@ -80,15 +81,26 @@ public:
     	return compute(task->subG, task->context, task->frontier_vertexes);
     }
 
+    ofstream fout;
+
     void start(int thread_id)
     {
     	thread_rank= map_task.thread_rank = thread_id;
+    	//------
+		char file[1000], no[40];
+		long long fileSeqNo = 1;
+		strcpy(file, REPORT_DIR.c_str());
+		sprintf(no, "/%d_%d", _my_rank, thread_rank);
+		strcat(file, no);
+		fout.open(file);
+		//------
     	main_thread = thread(&ComperT::run, this);
     }
 
     virtual ~Comper()
     {
     	main_thread.join();
+    	fout.close();
     }
 
     //load tasks from a file (from "global_file_list" to the task queue)

@@ -92,11 +92,13 @@ public:
     //=======================================================
     //constructor & destructor
 
-    Worker(int comper_num, string local_disk_path = "buffered_tasks")
+    Worker(int comper_num, string local_disk_path = "buffered_tasks", string report_path = "report")
     {
     	num_compers = comper_num;
     	TASK_DISK_BUFFER_DIR = local_disk_path;
     	_mkdir(TASK_DISK_BUFFER_DIR.c_str());
+    	REPORT_DIR = report_path;
+    	_mkdir(REPORT_DIR.c_str());
     	//------
     	global_end_label = false;
     	local_idle = false;
@@ -107,6 +109,7 @@ public:
     	global_local_table = &local_table;
 		global_vertexes = &vertexes;
 		idle_num_added = new atomic<bool>[comper_num];
+		for(int i=0; i<comper_num; i++) idle_num_added[i] = false;
     }
 
     void setAggregator(AggregatorT* ag)
@@ -243,7 +246,9 @@ public:
 	size_t get_remaining_task_num()
 	//not counting number of active tasks in memory (for simplicity)
 	{
+		global_vertex_pos_lock.lock();
 		int table_remain = local_table.size() - global_vertex_pos;
+		global_vertex_pos_lock.unlock();
 		return table_remain + global_file_num * TASK_BATCH_NUM;
 	}
 
