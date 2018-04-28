@@ -124,6 +124,7 @@ public:
     	}
     	else
     	{
+            counter.increment();
     		kvmap[key].list.push_back(task_id);
     		return true;
     	}
