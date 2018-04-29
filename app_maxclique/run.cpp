@@ -152,6 +152,10 @@ public:
 				t->context.push_back(newRoot); //### note for split ###: context expands for one more level
 				for(int j=0; j<vertices[i].value.size(); j++)
 				{
+                    if (vertices[i].value[j] < newRoot) {
+                        continue;
+                    }
+
 					CliqueVertex v;
 					v.id = vertices[i].value[j];
 					t->subG.addVertex(v);
@@ -159,6 +163,11 @@ public:
 				for(int j=0; j<vertices[i].value.size(); j++)
 				{
 					VertexID nb = vertices[i].value[j];
+
+                    if (nb  < newRoot) {
+                        continue;
+                    }
+
 					CliqueVertex* v_nb = t->subG.getVertex(nb);
 					CliqueValue &fval = g.getVertex(nb)->value;
 					for (int k = 0; k < fval.size(); k++) {
