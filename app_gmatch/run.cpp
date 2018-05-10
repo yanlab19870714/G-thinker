@@ -299,6 +299,7 @@ public:
 					has_c = true;
 				}
 			if(has_b && has_c) add_task(t);
+            else delete t;
     	}
     }
 
