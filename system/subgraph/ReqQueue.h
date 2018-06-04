@@ -37,46 +37,92 @@ public:
     typedef vector<Buffer> Queue;
 
     Queue q;
-    vector<thread> threads; //each thread handles one queue (to one worker), other than self
+    thread main_thread;
 
-    void thread_func(int tgt_rank) //managing requests to tgt_rank
+    void get_msgs(int i, ibinstream & m)
+	{
+    	if(i == _my_rank) return;
+    	Buffer & buf = q[i];
+		KeyT temp; //for fetching KeyT items
+        while(buf.dequeue(temp)){ //fetching till reach list-head
+            m << temp;
+            if(m.size() > MAX_BATCH_SIZE) break; //cut at batch size boundary
+        }
+	}
+
+    void thread_func() //managing requests to tgt_rank
     {
+    	int i = 0; //target worker to send
+    	bool sth_sent = false; //if sth is sent in one round, set it as true
+    	ibinstream* m0 = new ibinstream;
+    	ibinstream* m1 = new ibinstream;
+    	//m0 and m1 are alternating
+    	thread t(&ReqQueue::get_msgs, this, 0, ref(*m0)); //assisting thread
+    	bool use_m0 = true; //tag for alternating
+        clock_t last_tick = clock();
     	while(global_end_label == false) //otherwise, thread terminates
     	{
-    		clock_t last_tick = clock();
-    		//just wake up, see whether there's any req to send
-    		Buffer & buf = q[tgt_rank];
-    		KeyT temp; //for fetching KeyT items
-    		ibinstream m;
-    		while(buf.dequeue(temp)) m << temp; //fetching till reach list-head
-    		if(m.size() > 0)
+    		t.join(); //m0 or m1 becomes ready to send
+    		int j = i+1;
+    		if(j == _num_workers) j = 0;
+    		if(use_m0) //even
     		{
-    			//send reqs to tgt
-    			MPI_Send(m.get_buf(), m.size(), MPI_CHAR, tgt_rank, REQ_CHANNEL, MPI_COMM_WORLD);
+    			//use m0, set m1
+    			t = thread(&ReqQueue::get_msgs, this, j, ref(*m1));
+				if(m0->size() > 0)
+				{
+					sth_sent = true;
+					//send reqs to tgt
+					MPI_Send(m0->get_buf(), m0->size(), MPI_CHAR, i, REQ_CHANNEL, MPI_COMM_WORLD);
+					//------
+					delete m0;
+					m0 = new ibinstream;
+				}
+				use_m0 = false;
+    		}
+    		else //odd
+    		{
+    			//use m1, set m0
+    			t = thread(&ReqQueue::get_msgs, this, j, ref(*m0));
+				if(m1->size() > 0)
+				{
+					sth_sent = true;
+					//send reqs to tgt
+					MPI_Send(m1->get_buf(), m1->size(), MPI_CHAR, i, REQ_CHANNEL, MPI_COMM_WORLD);
+					//------
+					delete m1;
+					m1 = new ibinstream;
+				}
+				use_m0 = true;
     		}
     		//------------------------
-    		clock_t time_passed = clock() - last_tick; //the processing time above
-    		clock_t gap = polling_ticks - time_passed; //remaining time before next polling
-    		if(gap > 0) usleep(gap * 1000000 / CLOCKS_PER_SEC);
+    		i = j;
+    		if(j == 0)
+    		{
+    			if(!sth_sent) usleep(WAIT_TIME_WHEN_IDLE);
+    			else{
+                    sth_sent = false;
+                    clock_t time_passed = clock() - last_tick; //processing time
+                    clock_t gap = polling_ticks - time_passed; //remaining time before next polling
+                    if(gap > 0) usleep(gap * 1000000 / CLOCKS_PER_SEC);
+                }
+                last_tick = clock();
+    		}
     	}
+    	t.join();
+    	delete m0;
+    	delete m1;
     }
 
     ReqQueue()
     {
     	q.resize(_num_workers);
-    	threads.resize(_num_workers);
-    	for(int tgt=0; tgt<_num_workers; tgt++)
-    	{
-    		if(tgt != _my_rank) threads[tgt] = thread(&ReqQueue<VertexT>::thread_func, this, tgt);
-    	}
+    	main_thread = thread(&ReqQueue::thread_func, this);
     }
 
     ~ReqQueue()
     {
-    	for(int tgt=0; tgt<_num_workers; tgt++)
-		{
-			if(tgt != _my_rank) threads[tgt].join();
-		}
+    	main_thread.join();
     }
 
     HashT hash;
