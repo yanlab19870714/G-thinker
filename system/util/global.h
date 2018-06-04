@@ -42,7 +42,7 @@
 
 int POLLING_TIME; //unit: usec, user-configurable, used by sender
 //set in init_worker()
-static clock_t polling_ticks = POLLING_TIME * CLOCKS_PER_SEC / 1000000;
+static clock_t polling_ticks; // = POLLING_TIME * CLOCKS_PER_SEC / 1000000;
 
 #define SLEEP_PARAM 2000 // POLLING_TIME = SLEEP_PARAM * _num_workers
 //this ratio is tested on Azure
@@ -132,6 +132,7 @@ void init_worker(int * argc, char*** argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &_num_workers);
 	MPI_Comm_rank(MPI_COMM_WORLD, &_my_rank);
     POLLING_TIME = SLEEP_PARAM * _num_workers;
+    polling_ticks = POLLING_TIME * CLOCKS_PER_SEC / 1000000;
 }
 
 void worker_finalize()
