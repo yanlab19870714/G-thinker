@@ -76,7 +76,6 @@ public:
         	return NULL;
         }
         head = new_head;
-        lck.unlock();
         delete node;
         return head->value;
     }
