@@ -51,7 +51,7 @@ public:
 	//thread_counter counter; //used for trim-to-vcache-limit
 	thread main_thread;
 
-	void thread_func(char * buf, int size)
+	void thread_func(char * buf, int size, int mpi_src)
 	{
 		//get Comper objects of all threads
 		TaskMapT ** taskmap_vec = (TaskMapT **)global_taskmap_vec;
@@ -79,6 +79,7 @@ public:
 				TaskMapT* tmap = taskmap_vec[thread_id];
 				tmap->update(task_id); //add the task's counter, move to conque if ready (to be fetched by Comper)
 			}
+			req_counter[mpi_src]--;
 		}
 		/* we let GC do that now
 		//try to trim to capacity-limit
@@ -105,7 +106,7 @@ public:
     			char * buf = new char[size]; //space for receiving this msg-batch, space will be released by obinstream in thread_func(.)
     			MPI_Recv(buf, size, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     			if(!first) t.join(); //wait for previous CPU op to finish; t can be extended to a vector of threads later if necessary
-    			t = thread(&RespServerT::thread_func, this, buf, size);
+    			t = thread(&RespServerT::thread_func, this, buf, size, status.MPI_SOURCE);
     			first = false;
     		}
     	}

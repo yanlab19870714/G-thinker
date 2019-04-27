@@ -70,6 +70,7 @@ static clock_t polling_ticks; // = POLLING_TIME * CLOCKS_PER_SEC / 1000000;
 #define MIN_TASK_NUM_BEFORE_STEALING 10*TASK_BATCH_NUM //how many tasks should be remaining (or task stealing is triggered)
 
 #define MINI_BATCH_NUM 10 //used by spawning from local
+#define REQUEST_BOUND 100000 //the maximal number of requests could be sent between each two workers
 
 #define GRAPH_LOAD_CHANNEL 200
 #define REQ_CHANNEL 201
@@ -206,11 +207,15 @@ void _rmdir(string path){
     }
 }
 
-atomic<bool>* idle_num_added; //to indicate whether a comper has notified worker of its idleness
+atomic<bool>* idle_set; //to indicate whether a comper has notified worker of its idleness
+mutex mtx_go;
+condition_variable cv_go;
 
 //used by profiler
 atomic<size_t>* global_tasknum_vec; //set by Worker using its compers, updated by comper, read by profiler
 atomic<size_t> num_stolen(0); //number of tasks stolen by the current worker since previous profiling barrier
+
+atomic<size_t>* req_counter; //to count how many requests were sent to each worker
 
 int num_compers;
 

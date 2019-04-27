@@ -331,12 +331,14 @@ public:
 				{
 					if(map_task.size == 0) //needed because "push_task_from_taskmap()" does not check whether map_task's map is empty
 					{
-						if(idle_num_added[thread_rank] == false){
-							global_num_idle++;
-							idle_num_added[thread_rank] = true;
+						unique_lock<mutex> lck(mtx_go);
+						idle_set[thread_rank] = true;
+						global_num_idle++;
+						while(idle_set[thread_rank]){
+							cv_go.wait(lck);
 						}
 					}
-					usleep(WAIT_TIME_WHEN_IDLE); //avoid busy-wait when idle
+					//usleep(WAIT_TIME_WHEN_IDLE); //avoid busy-wait when idle
 				}
 			}
 		}

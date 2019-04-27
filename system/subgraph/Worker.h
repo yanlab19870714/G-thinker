@@ -69,7 +69,7 @@ public:
     //worker's data structures
     HashT hash;
     VTable local_table; //key-value store of my vertex portion
-    CTable cache_table; //cached remote vertices, it creates ReqQueue for appeding reqs
+    CTable * cache_table; //cached remote vertices, it creates ReqQueue for appeding reqs
 
 	VertexVec vertexes;
     TaskMapT** taskmap_vec;
@@ -105,11 +105,13 @@ public:
     	global_trimmer = NULL;
     	global_aggregator = NULL;
     	global_agg = NULL;
-    	global_vcache = &cache_table;
+    	req_counter = new atomic<size_t>[_num_workers];
+    	for(int i=0; i<_num_workers; i++) req_counter[i] = 0; //must be before the next line
+    	global_vcache = cache_table = new CTable;
     	global_local_table = &local_table;
 		global_vertexes = &vertexes;
-		idle_num_added = new atomic<bool>[comper_num];
-		for(int i=0; i<comper_num; i++) idle_num_added[i] = false;
+		idle_set = new atomic<bool>[comper_num];
+		for(int i=0; i<comper_num; i++) idle_set[i] = false;
     }
 
     void setAggregator(AggregatorT* ag)
@@ -133,7 +135,9 @@ public:
 		delete[] compers;
 		delete[] taskmap_vec;
 		delete[] global_tasknum_vec;
-		delete[] idle_num_added;
+		delete[] idle_set;
+		delete[] req_counter;
+		delete cache_table;
 		//ToDo: release aggregator
         if (global_agg != NULL)
             delete (FinalT*)global_agg;
@@ -578,10 +582,10 @@ public:
 		create_compers(); //side effect: set global_comper_vec
 
 		//set up RespServer, let it know cache_table so that it can update it when getting resps
-		RespServer<Comper> server_resp(cache_table); //it would read global_comper_vec
+		RespServer<Comper> server_resp(*cache_table); //it would read global_comper_vec
 
 		//set up vcache GC
-		GCT gc(cache_table);
+		GCT gc(*cache_table);
 
 		//set up AggSync
 		AggSync<AggregatorT> * agg_thread; //the thread that runs agg_sync()
@@ -597,8 +601,11 @@ public:
             status_sync(sth2steal);
             //------
             //reset idle status of Worker, compers will add back if idle
+            mtx_go.lock();
+            for(int i=0; i<num_compers; i++) idle_set[i] = false;
             global_num_idle = 0;
-            for(int i=0; i<num_compers; i++) idle_num_added[i] = false;
+            cv_go.notify_all(); //release threads to compute tasks
+            mtx_go.unlock();
             usleep(STATUS_SYNC_TIME_GAP);
 		}
 

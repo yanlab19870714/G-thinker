@@ -44,8 +44,10 @@ public:
     	if(i == _my_rank) return;
     	Buffer & buf = q[i];
 		KeyT temp; //for fetching KeyT items
-        while(buf.dequeue(temp)){ //fetching till reach list-head
+        while(req_counter[i] < REQUEST_BOUND && buf.dequeue(temp))
+        { //fetching till reach list-head
             m << temp;
+            req_counter[i]++;
             if(m.size() > MAX_BATCH_SIZE) break; //cut at batch size boundary
         }
 	}
@@ -100,13 +102,13 @@ public:
     		if(j == 0)
     		{
     			if(!sth_sent) usleep(WAIT_TIME_WHEN_IDLE);
-    			else{
+    			/*else{
                     sth_sent = false;
                     clock_t time_passed = clock() - last_tick; //processing time
                     clock_t gap = polling_ticks - time_passed; //remaining time before next polling
                     if(gap > 0) usleep(gap * 1000000 / CLOCKS_PER_SEC);
                 }
-                last_tick = clock();
+                last_tick = clock();*/
     		}
     	}
     	t.join();
