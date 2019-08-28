@@ -70,7 +70,7 @@ static clock_t polling_ticks; // = POLLING_TIME * CLOCKS_PER_SEC / 1000000;
 #define MIN_TASK_NUM_BEFORE_STEALING 10*TASK_BATCH_NUM //how many tasks should be remaining (or task stealing is triggered)
 
 #define MINI_BATCH_NUM 10 //used by spawning from local
-#define REQUEST_BOUND 100000 //the maximal number of requests could be sent between each two workers
+#define REQUEST_BOUND 50000 //the maximal number of requests could be sent between each two workers //tuned on GigE
 
 #define GRAPH_LOAD_CHANNEL 200
 #define REQ_CHANNEL 201
