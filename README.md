@@ -7,8 +7,8 @@ Existing Big Data frameworks are dominantly **data-intensive** where communicati
 G-thinker fundamentally changes the data-intensive design of existing Big Data frameworks. It adopts a **task-based** execution engine that is able to **keep CPUs in a cluster fully utilized** even with a budget limit on memory consumption. It also provides a **subgraph-centric API** that is natural for writing graph mining algorithms. G-thinker is orders of magnitude faster than existing systems and scales to graphs orders of magnitude larger given the same hardware environment.
 
 ### Documentation
-We maintain detailed documentation in our awesome system website: http://www.cs.uab.edu/yanda/gthinker.
+We maintain detailed documentation in our awesome system website: https://yanlab19870714.github.io/yanda/gthinker/.
 
 ### Contact
-UAB Data Lab (or YanLab@UAB): http://www.cs.uab.edu/yanda
+UAB Data Lab (or YanLab@UAB): https://yanlab19870714.github.io/yanda/
 Email: yanda@uab.edu
