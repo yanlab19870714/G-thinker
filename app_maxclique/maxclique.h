@@ -133,34 +133,34 @@ void expand(vector<CliqueVertex> & vertexes, vector<int> & N, VSet & Q, VSet & Q
 {
 	while(!vertexes.empty())
 	{
-       	CliqueVertex & p = vertexes.back(); //***
+		CliqueVertex & p = vertexes.back(); //***
 		if(Q.size() + N.back() > Qmax.size())
 		{
 			Q.insert(p.id);
 			vector<CliqueVertex *> Rp_pts;
-            //compute Rp = vertexes intersects nbs(p)
-	    	CliqueValue & nbs = p.value;
-	    	set<VertexID> nbs_set; //somehow, using VSet would be very slow for a sparse graph, due to hash_set setup time
-            for(int pos = 0; pos < nbs.size(); pos++) nbs_set.insert(nbs[pos]);
-            for(int i = 0; i < vertexes.size(); i++)
-            {
-                CliqueVertex & v = vertexes[i];
-                if(nbs_set.find(v.id) != nbs_set.end()) Rp_pts.push_back(&v);
-            }
-            if(!Rp_pts.empty())
+			//compute Rp = vertexes intersects nbs(p)
+			CliqueValue & nbs = p.value;
+			set<VertexID> nbs_set; //somehow, using VSet would be very slow for a sparse graph, due to hash_set setup time
+			for(int pos = 0; pos < nbs.size(); pos++) nbs_set.insert(nbs[pos]);
+			for(int i = 0; i < vertexes.size(); i++)
 			{
-                vector<CliqueVertex> Rp;
+				CliqueVertex & v = vertexes[i];
+				if(nbs_set.find(v.id) != nbs_set.end()) Rp_pts.push_back(&v);
+			}
+			if(!Rp_pts.empty())
+			{
+				vector<CliqueVertex> Rp;
 				nbs_prune(Rp_pts, Rp);
-                vector<int> colorN;
+				vector<int> colorN;
 				color_sort(Rp, colorN);
 				expand(Rp, colorN, Q, Qmax);
 			}
-            else if(Q.size() > Qmax.size()) Qmax = Q;
+			else if(Q.size() > Qmax.size()) Qmax = Q;
 			Q.erase(p.id);
 		}
-        vertexes.pop_back(); //***
-        N.pop_back();
-	}
+		vertexes.pop_back(); //***
+		N.pop_back();
+    } else return;
 }
 
 void MCQ(CliqueSubgraph & g, VSet & Qmax)
