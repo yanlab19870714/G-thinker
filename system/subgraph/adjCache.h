@@ -310,6 +310,7 @@ public:
 					{
 						bucket.unlock();
 						pos++; //current bucket has been checked, next time, start from next bucket
+						if(pos >= CONMAP_BUCKET_NUM) pos -= CONMAP_BUCKET_NUM;
 						return 0;
 					}
 				}
